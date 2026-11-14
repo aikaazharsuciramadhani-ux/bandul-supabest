@@ -102,6 +102,9 @@ svg.chart .axis{stroke:var(--line);stroke-width:1}
 .kosong{color:var(--muted);padding:6px 2px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.alat{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--line);background:var(--panel2);border-radius:10px;margin-bottom:8px}
+.alat>div:first-child{flex:1 1 180px;min-width:0}.alat .aksi{display:flex;gap:6px;flex-wrap:wrap}.alat .btn{margin:0;padding:7px 12px}
+.kontrol-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.kontrol-head h2{margin:0}.kontrol-head select{width:auto;min-width:160px}
 .list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .list button{width:100%;text-align:left;border:1px solid var(--line);background:var(--panel2);color:inherit;border-radius:10px;padding:9px 12px;font:inherit;cursor:pointer}
 .list button:hover{border-color:#2a4a6e}
@@ -128,6 +131,7 @@ code{background:#0a1322;border:1px solid var(--line);border-radius:5px;padding:1
   <div class="menu-label">Main menu</div>
   <nav class="nav" id="nav">
     <button data-page="dashboard" aria-current="page"><span class="ic">▦</span><span>Dashboard</span></button>
+    <button data-page="ambil"><span class="ic">●</span><span>Ambil Data<small>Rekam langsung, per kelompok</small></span></button>
     <button data-page="mode1"><span class="ic">∿</span><span>Mode 1<small>Grafik &amp; analisis g</small></span></button>
     <button data-page="mode2"><span class="ic">☰</span><span>Mode 2<small>Data mentah (CSV)</small></span></button>
     <button data-page="panduan"><span class="ic">?</span><span>Panduan</span></button>
@@ -143,13 +147,42 @@ code{background:#0a1322;border:1px solid var(--line);border-radius:5px;padding:1
     <div class="top"><div><h1>Dashboard</h1><p>Monitoring alat bandul ESP32 dan koneksi database</p></div>
       <span class="pill"><span class="dot" id="dot"></span><span id="status">Memuat…</span></span></div>
     <div class="status-grid" id="status-grid"></div>
+    <div class="panel" style="margin-bottom:14px"><div class="kontrol-head"><h2>Kontrol alat (real time)</h2><select id="f-alat" aria-label="Filter alat"></select></div>
+      <div id="kontrol"></div>
+      <div class="hint">Jeda/Mulai dan Sesi baru dikirim ke alat dalam ±2 detik. Lewatan saat dijeda tidak disimpan. Tombol BOOT di alat tetap bisa memulai sesi baru.</div></div>
     <div class="two">
       <div class="panel"><h2>Sesi terbaru</h2><ul class="list" id="dash-sesi"></ul></div>
       <div class="panel guide"><h2>Informasi sistem</h2>
         <p style="margin-top:0">Sensor IR pada ESP32 mencatat waktu tiap lewatan bandul. Data dikirim lewat WiFi ke database Supabase, lalu ditampilkan di halaman ini sehingga bisa dibuka dari mana saja dan kapan saja.</p>
         <p><b>Mode 1</b> menghitung periode T, percepatan gravitasi g, koreksi amplitudo, redaman, serta regresi beberapa panjang tali dan massa.
         <b>Mode 2</b> hanya menampilkan data mentah (t masuk, t keluar) dan mengunduhnya sebagai CSV.</p>
-        <p class="muted small" style="margin-bottom:0">Merekam dilakukan pada alat: ayunkan bandul, data muncul otomatis. Tekan tombol BOOT di ESP32 untuk memulai sesi baru.</p></div>
+        <p class="muted small" style="margin-bottom:0">Kontrol rekaman ada di panel Kontrol alat: Mulai/Jeda dan Sesi baru langsung dari halaman ini. Ayunkan bandul, data muncul otomatis.</p></div>
+    </div>
+  </section>
+
+  <!-- ===================== AMBIL DATA ===================== -->
+  <section id="page-ambil" hidden>
+    <div class="top"><div><h1>Ambil Data</h1><p>Rekam percobaan langsung dari alat; hasil muncul real time</p></div><span class="pill" id="pill-ambil">Siap</span></div>
+    <div class="work">
+      <div class="left">
+        <form class="group" id="form-ambil" autocomplete="off"><span class="gt">1. Kelompok &amp; alat</span>
+          <div class="field"><label for="a-alat">Alat (ESP32)</label><select id="a-alat"></select></div>
+          <div class="field"><label for="a-kel">Nama kelompok</label><input id="a-kel" type="text" maxlength="50" placeholder="mis. Kelompok 3"></div>
+          <span class="gt" style="margin-top:12px">2. Parameter percobaan</span>
+          <div class="field"><label for="a-L">Panjang tali L (cm)</label><input id="a-L" type="number" step="0.1" min="1"></div>
+          <div class="field"><label for="a-w">Lebar penghalang w (mm)</label><input id="a-w" type="number" step="0.1" min="0.1"></div>
+          <div class="field"><label for="a-m">Massa beban m (g), opsional</label><input id="a-m" type="number" step="0.01" min="0"></div>
+          <button class="btn pri" id="a-mulai" type="submit">▶ Mulai ambil data</button>
+          <button class="btn" id="a-selesai" type="button" disabled>■ Selesai</button>
+          <div class="hint" id="a-note">Setelah Mulai, ayunkan bandul. Data tersimpan otomatis ke sesi baru atas nama kelompok ini.</div></form>
+        <div class="group"><span class="gt">Hasil</span>
+          <button class="btn" id="a-buka" type="button" disabled>Buka analisis lengkap (Mode 1)</button></div>
+      </div>
+      <div class="stack">
+        <div class="cards" id="a-kartu"></div>
+        <div class="panel"><h2>Periode tiap lewatan (live)</h2><div id="a-chT"></div></div>
+        <div class="panel"><h2>30 lewatan terakhir</h2><div class="scroll" style="max-height:260px"><table id="a-tabel"></table></div></div>
+      </div>
     </div>
   </section>
 
@@ -264,6 +297,8 @@ code{background:#0a1322;border:1px solid var(--line);border-radius:5px;padding:1
   <section id="page-panduan" hidden>
     <div class="top"><div><h1>Panduan</h1><p>Cara memakai alat dan halaman ini</p></div></div>
     <div class="panel guide">
+      <h3>Ambil data dari web</h3>
+      <ol><li>Buka <b>Ambil Data</b>, pilih alat milik kelompokmu, isi nama kelompok, L, dan w.</li><li>Tekan <b>Mulai ambil data</b>, ayunkan bandul; T dan g muncul langsung. Tekan <b>Selesai</b> bila cukup.</li><li>Sesi tersimpan atas nama kelompokmu dan bisa dibuka lagi di Mode 1 / Mode 2.</li></ol>
       <h3>Merekam data (di alat)</h3>
       <ol><li>Nyalakan ESP32 dan tunggu LED biru menyala terus (WiFi tersambung).</li>
         <li>Ayunkan bandul. Setiap lewatan terkirim otomatis, muncul di halaman ini dalam ±3 detik dengan label <b>LIVE</b>.</li>
@@ -311,6 +346,13 @@ function buatStoreSupabase(url, kunci) {
         if (h.length < 1000) return out;
       }
     },
+    alat: async () => {
+      const rows = await (await periksa(await fetch(dasar + 'perangkat?select=*&order=id.asc&limit=200', { headers: kepala, cache: 'no-store' }))).json();
+      return Object.fromEntries(rows.map((r) => [r.id, { ...r, terlihat: ms(r.terlihat) }]));
+    },
+    ubahAlat: async (id, patch) => {
+      await periksa(await fetch(dasar + 'perangkat?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: kepala, body: JSON.stringify(patch) }));
+    },
     simpanMeta: async (id, patch) => {
       await periksa(await fetch(dasar + 'sesi?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: kepala, body: JSON.stringify(patch) }));
     },
@@ -320,6 +362,8 @@ function buatStoreDemo() {
   const d = JSON.parse(JSON.stringify(window.BANDUL_DEMO || {}));
   return {
     daftar: async () => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v.meta])),
+    alat: async () => ({ 'esp32-bandul-1': { id: 'esp32-bandul-1', nama: 'Kelompok 1 (demo)', rekam: true, urut_sesi: 0, terlihat: Date.now() } }),
+    ubahAlat: async () => {},
     data: async (id) => (d[id] ? d[id].rows : []),
     simpanMeta: async (id, patch) => { Object.assign(d[id].meta, patch); },
   };
@@ -328,7 +372,7 @@ const store = DEMO ? buatStoreDemo() : buatStoreSupabase(cfg.supabaseURL, cfg.su
 
 /* ============ keadaan & alat bantu ============ */
 const S = { sesi: {}, baris: {}, lokal: {}, dipilih: null, page: 'dashboard', tab: 'ringkasan', gAcuan: 9.78, tol: 0.2,
-            percobaan: [], terhubung: null, formKotor: false };
+            percobaan: [], alat: {}, filterAlat: '', terhubung: null, formKotor: false };
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const nf = (x, d = 3) => Number.isFinite(x) ? x.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–';
@@ -337,7 +381,7 @@ const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
 const waktu = (ms) => ms ? new Date(ms).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'waktu tidak diketahui';
 const adaLive = (m) => !DEMO && m && m.diperbarui && (Date.now() - m.diperbarui) < 15000;
 const lalu = (ms) => { const d = (Date.now() - ms) / 1000; return d < 60 ? Math.round(d) + ' dtk lalu' : d < 3600 ? Math.round(d / 60) + ' mnt lalu' : d < 86400 ? Math.round(d / 3600) + ' jam lalu' : Math.round(d / 86400) + ' hari lalu'; };
-const namaSesi = (id) => { const m = S.sesi[id] || {}; return m.nama || waktu(m.mulai); };
+const namaSesi = (id) => { const m = S.sesi[id] || {}, a = S.alat[m.perangkat], p = (a && a.nama) || m.perangkat; return m.nama || (p ? p + ' · ' : '') + waktu(m.mulai); };
 
 function setStatus(teks, kelas) { $('#status').textContent = teks; $('#dot').className = 'dot ' + (kelas || ''); }
 
@@ -402,7 +446,7 @@ function gambar(el, o) {
 /* ============ navigasi ============ */
 function setPage(p, id) {
   S.page = p;
-  for (const n of ['dashboard', 'mode1', 'mode2', 'panduan']) $('#page-' + n).hidden = n !== p;
+  for (const n of ['dashboard', 'ambil', 'mode1', 'mode2', 'panduan']) $('#page-' + n).hidden = n !== p;
   $$('#nav button').forEach((b) => { if (b.dataset.page === p) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   if (id && S.sesi[id]) pilihSesi(id);
   renderAktif();
@@ -418,8 +462,9 @@ function setTab(t) {
 }
 $('#tabs1').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) setTab(b.dataset.tab); });
 
-function urutSesi() { return Object.keys(S.sesi).sort((a, b) => ((S.sesi[b].mulai || 0) - (S.sesi[a].mulai || 0)) || (a < b ? 1 : -1)); }
+function urutSesi() { return Object.keys(S.sesi).filter((id) => !S.filterAlat || S.sesi[id].perangkat === S.filterAlat).sort((a, b) => ((S.sesi[b].mulai || 0) - (S.sesi[a].mulai || 0)) || (a < b ? 1 : -1)); }
 function renderAktif() {
+  if (S.page === 'ambil') renderAmbil();
   if (S.page === 'dashboard') renderDashboard();
   else if (S.page === 'mode1') renderMode1();
   else if (S.page === 'mode2') renderMode2();
@@ -445,7 +490,78 @@ function renderDashboard() {
     const m = S.sesi[id];
     return `<li><button data-id="${esc(id)}"><b>${esc(namaSesi(id))}</b>${adaLive(m) ? '<span class="live">LIVE</span>' : ''}<br><span class="small muted">${m.n || 0} lewatan${m.panjang_m ? ' · L ' + nf(m.panjang_m * 100, 1) + ' cm' : ''}${m.massa_g ? ' · ' + nf(m.massa_g, 2) + ' g' : ''}</span></button></li>`;
   }).join('') : '<li class="kosong">Belum ada sesi. Nyalakan ESP32 dan ayunkan bandul.</li>';
+  if (typeof renderKontrol === 'function') renderKontrol();
 }
+const alatOnline = (a) => a.terlihat && Date.now() - a.terlihat < 10000;
+function renderKontrol() {
+  const ids = Object.keys(S.alat);
+  const opt = '<option value="">Semua alat</option>' + ids.map((id) => `<option value="${esc(id)}">${esc(S.alat[id].nama || id)}</option>`).join('');
+  const f = $('#f-alat'); if (f.dataset.o !== opt) { f.innerHTML = opt; f.dataset.o = opt; } f.value = S.filterAlat;
+  $('#kontrol').innerHTML = ids.length ? ids.map((id) => {
+    const a = S.alat[id], on = alatOnline(a);
+    return `<div class="alat" data-id="${esc(id)}"><div><b>${esc(a.nama || id)}</b><div class="small muted">${esc(id)} · ${on ? 'online' : 'offline' + (a.terlihat ? ' · terakhir ' + lalu(a.terlihat) : '')}</div></div>
+      <span class="state ${on ? (a.rekam ? 'ok' : 'wait') : 'bad'}">${on ? (a.rekam ? 'Merekam' : 'Dijeda') : 'Offline'}</span>
+      <div class="aksi"><button class="btn auto" data-aksi="rekam" ${on ? '' : 'disabled'}>${a.rekam ? '⏸ Jeda' : '▶ Mulai'}</button><button class="btn auto" data-aksi="baru" ${on ? '' : 'disabled'}>＋ Sesi baru</button><button class="btn auto" data-aksi="nama">✎ Nama</button></div></div>`;
+  }).join('') : '<div class="kosong small">Belum ada alat terdaftar. Jalankan <code>setup_kontrol.sql</code>, upload firmware terbaru, lalu nyalakan ESP32.</div>';
+}
+/* ============ Ambil Data (kelompok + rekam live) ============ */
+function renderAmbil() {
+  const ids = Object.keys(S.alat), A = S.ambil;
+  const opt = ids.map((id) => `<option value="${esc(id)}">${esc(S.alat[id].nama || id)}${alatOnline(S.alat[id]) ? '' : ' (offline)'}</option>`).join('') || '<option value="">(belum ada alat)</option>';
+  const sel = $('#a-alat'); if (sel.dataset.o !== opt) { const v = sel.value; sel.innerHTML = opt; sel.dataset.o = opt; if (v) sel.value = v; }
+  if (A && !A.id) {   // cari sesi baru milik alat itu
+    const baru = Object.keys(S.sesi).filter((i) => S.sesi[i].perangkat === A.alat && !A.sebelum.includes(i)).sort().pop();
+    if (baru) A.id = baru;
+  }
+  const rows = (A && A.id && S.baris[A.id]) || [];
+  $('#a-mulai').disabled = !!(A && !A.selesai); $('#a-selesai').disabled = !(A && !A.selesai); $('#a-buka').disabled = !(A && A.id);
+  $('#pill-ambil').textContent = !A ? 'Siap' : A.selesai ? 'Selesai' : A.id ? 'LIVE · merekam' : 'Menunggu lewatan pertama…';
+  let h = null; if (A && A.id) { try { h = analisisSesi(A.id); } catch { h = null; } }
+  $('#a-kartu').innerHTML = kartuKpi('Lewatan', String(rows.length), '', 'var(--c1)') + kartuKpi('Periode T', h ? nf(h.T, 4) : '–', 's', 'var(--c2)') + kartuKpi('g', h ? nf(h.g, 3) : '–', 'm/s²', 'var(--amber)');
+  if (h) gambar($('#a-chT'), { series: [{ pts: h.T_i.map((t, i) => [i + 1, t, h.T_i_terpakai[i] ? 'c1' : 'cbad']), garis: false, warna: 'c1' },
+      { pts: [[1, h.T], [Math.max(2, h.T_i.length), h.T]], garis: true, titik: false, warna: 'c1', putus: true, tebal: 1 }],
+    xlabel: 'nomor periode', ylabel: 'T (s)', tipX: 'periode ke', tipY: 'T (s)' });
+  else $('#a-chT').innerHTML = `<div class="kosong small">${A ? 'Menunggu data… ayunkan bandul (minimal 5 lewatan).' : 'Isi form lalu tekan Mulai ambil data.'}</div>`;
+  $('#a-tabel').innerHTML = rows.length ? tabelRaw(rows.slice(-30)) : '';
+  if (DEMO) $('#a-note').textContent = 'Mode demo: tombol ini tidak mengirim perintah ke alat.';
+}
+async function muatAmbil() {
+  const A = S.ambil; if (!A || !A.id) return;
+  const m = S.sesi[A.id]; if (!m) return;
+  if (!A.selesai || (S.baris[A.id] || []).length !== (m.n || 0)) { try { S.baris[A.id] = await store.data(A.id); } catch { /* abaikan */ } }
+  if (S.page === 'ambil') renderAmbil();
+}
+$('#form-ambil').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = $('#a-alat').value, a = S.alat[id];
+  if (!a) { alert('Belum ada alat. Nyalakan ESP32 dan tunggu muncul di daftar.'); return; }
+  if (!alatOnline(a) && !DEMO && !confirm('Alat tampak offline. Tetap kirim perintah?')) return;
+  const L = parseFloat($('#a-L').value), w = parseFloat($('#a-w').value), mm = parseFloat($('#a-m').value);
+  if (!(L > 0 && L < 1000) || !(w > 0 && w < 1000)) { alert('Isi panjang tali L (cm) dan lebar penghalang w (mm) dengan benar.'); return; }
+  const patch = { rekam: true, urut_sesi: (a.urut_sesi || 0) + 1, kelompok: $('#a-kel').value.trim().slice(0, 59) || null, panjang_m: L / 100, lebar_m: w / 1000, massa_g: Number.isFinite(mm) ? mm : null };
+  try {
+    await store.ubahAlat(id, patch); Object.assign(a, patch);
+    S.ambil = { alat: id, sebelum: Object.keys(S.sesi).filter((i) => S.sesi[i].perangkat === id), id: null, selesai: false };
+  } catch { alert('Gagal mengirim perintah. Periksa koneksi dan pastikan setup_kontrol.sql (versi terbaru) sudah dijalankan.'); }
+  renderAmbil();
+});
+$('#a-selesai').addEventListener('click', async () => {
+  const A = S.ambil; if (!A) return;
+  try { await store.ubahAlat(A.alat, { rekam: false }); if (S.alat[A.alat]) S.alat[A.alat].rekam = false; A.selesai = true; } catch { alert('Gagal mengirim perintah selesai.'); }
+  muatAmbil(); renderAmbil();
+});
+$('#a-buka').addEventListener('click', () => { if (S.ambil && S.ambil.id) setPage('mode1', S.ambil.id); });
+$('#f-alat').addEventListener('change', (e) => { S.filterAlat = e.target.value; renderDashboard(); renderSelect(); });
+$('#kontrol').addEventListener('click', async (e) => {
+  const b = e.target.closest('button[data-aksi]'); if (!b) return;
+  const id = b.closest('.alat').dataset.id, a = S.alat[id];
+  try {
+    if (b.dataset.aksi === 'rekam') { a.rekam = !a.rekam; await store.ubahAlat(id, { rekam: a.rekam }); }
+    else if (b.dataset.aksi === 'baru') { a.urut_sesi = (a.urut_sesi || 0) + 1; await store.ubahAlat(id, { urut_sesi: a.urut_sesi }); }
+    else { const n = prompt('Nama alat / kelompok:', a.nama || ''); if (n === null) return; a.nama = n.trim().slice(0, 59) || null; await store.ubahAlat(id, { nama: a.nama }); }
+  } catch { alert('Gagal mengirim perintah. Periksa koneksi dan pastikan setup_kontrol.sql sudah dijalankan.'); }
+  renderKontrol();
+});
 $('#dash-sesi').addEventListener('click', (e) => { const b = e.target.closest('button[data-id]'); if (b) setPage('mode1', b.dataset.id); });
 
 /* ============ pemilih sesi ============ */
@@ -640,6 +756,7 @@ function renderMode2() {
 async function segarkanDaftar() {
   try {
     S.sesi = await store.daftar(); S.terhubung = true;
+    try { S.alat = await store.alat(); } catch { S.alat = {}; }
     setStatus(DEMO ? 'Mode demo' : 'Terhubung', DEMO ? 'wait' : 'on');
     renderSelect();
     if (!S.dipilih) { const awal = urutSesi()[0]; if (awal) { S.dipilih = awal; isiForm(awal); renderSelect(); muatData(awal); } }
@@ -648,6 +765,7 @@ async function segarkanDaftar() {
       if (m && (adaLive(m) || (S.baris[S.dipilih] || []).length !== (m.n || 0))) muatData(S.dipilih);
     }
     renderAktif();
+    muatAmbil();
   } catch { S.terhubung = false; setStatus('Tidak terhubung', 'err'); renderAktif(); }
 }
 if (DEMO) {
@@ -657,7 +775,7 @@ if (DEMO) {
 (async () => {
   const [hp, hid] = decodeURIComponent(location.hash.slice(1)).split('/');
   await segarkanDaftar();
-  const hal = ['dashboard', 'mode1', 'mode2', 'panduan'].includes(hp) ? hp : 'dashboard';
+  const hal = ['dashboard', 'ambil', 'mode1', 'mode2', 'panduan'].includes(hp) ? hp : 'dashboard';
   setPage(hal, hid);
 })();
 setInterval(() => { if (document.visibilityState === 'visible') segarkanDaftar(); }, 3000);
