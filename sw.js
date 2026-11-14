@@ -1,6 +1,6 @@
 // Service worker: membuat halaman bisa dibuka (cangkangnya) tanpa internet dan terpasang seperti aplikasi.
 // Data dari Supabase TIDAK di-cache di sini; permintaan lintas-domain dibiarkan lewat apa adanya.
-const VERSI = 'bandul-v4';
+const VERSI = 'bandul-v5';
 const CANGKANG = ['./', 'index.html', 'analisis.js', 'config.js', 'demo-data.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', (e) => {
