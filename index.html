@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bandul Online</title>
+<meta name="description" content="Data praktikum bandul sederhana dari ESP32: lihat, analisis, dan unduh dari mana saja.">
+<meta name="theme-color" content="#1e3a5f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f4f6fa; --panel:#fff; --ink:#14213d; --muted:#5b6785; --line:#dde3ee;
+  --accent:#2563eb; --accent-ink:#fff; --navy:#1e3a5f;
+  --ok:#15803d; --ok-bg:#dcfce7; --warn:#a16207; --warn-bg:#fef3c7; --bad:#b91c1c; --bad-bg:#fee2e2;
+  --c1:#2563eb; --c2:#0d9488; --cbad:#dc2626; --grid:#e6eaf2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1626; --panel:#16213a; --ink:#e7ecf7; --muted:#9aa7c4; --line:#27345a;
+    --accent:#5b8def; --accent-ink:#0b1220; --navy:#101c33;
+    --ok:#4ade80; --ok-bg:#12341f; --warn:#facc15; --warn-bg:#3a2f0b; --bad:#f87171; --bad-bg:#3b1414;
+    --c1:#6ea0ff; --c2:#2dd4bf; --cbad:#f87171; --grid:#24304f;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--navy);color:#fff;padding:10px 16px;padding-top:calc(10px + env(safe-area-inset-top));
+  display:flex;gap:12px;align-items:center;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;font-weight:650;letter-spacing:.2px}
+header .sp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:3px 10px;border-radius:99px;
+  background:rgba(255,255,255,.14);color:#fff;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}
+.dot.on{background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.25)}
+.dot.err{background:#f87171}
+nav{display:flex;gap:4px;padding:10px 16px 0;max-width:1180px;margin:0 auto}
+nav button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;padding:8px 14px;
+  border-bottom:2px solid transparent;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--accent);border-color:var(--accent)}
+main{max-width:1180px;margin:0 auto;padding:12px 16px 40px}
+.banner{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:14px}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:start}
+@media (max-width:820px){.layout{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.panel h2{font-size:14px;margin:0 0 10px;color:var(--muted);font-weight:650;text-transform:uppercase;letter-spacing:.6px}
+#daftar{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:70vh;overflow:auto}
+@media (max-width:820px){#daftar{max-height:240px}}
+#daftar button{width:100%;text-align:left;border:1px solid var(--line);background:var(--bg);color:inherit;
+  border-radius:10px;padding:9px 12px;font:inherit;cursor:pointer;display:block}
+#daftar button[aria-current="true"]{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+#daftar .t1{font-weight:600;display:flex;gap:8px;align-items:center}
+#daftar .t2{font-size:12.5px;color:var(--muted)}
+.live{font-size:11px;font-weight:700;color:var(--ok);background:var(--ok-bg);padding:1px 7px;border-radius:99px}
+.kosong{color:var(--muted);padding:6px 2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.card .k{font-size:12px;color:var(--muted)}
+.card .v{font-size:22px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.25}
+.card .u{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:99px}
+.badge.sesuai{color:var(--ok);background:var(--ok-bg)} .badge.cukup{color:var(--warn);background:var(--warn-bg)} .badge.tidak{color:var(--bad);background:var(--bad-bg)}
+form.meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;align-items:end}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+input[type=number],input[type=text]{width:100%;font:inherit;padding:7px 9px;border:1px solid var(--line);border-radius:8px;
+  background:var(--panel);color:var(--ink);font-variant-numeric:tabular-nums}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:7px 12px;
+  border-radius:8px;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stack{display:flex;flex-direction:column;gap:14px}
+.muted{color:var(--muted)} .small{font-size:12.5px}
+svg.chart{width:100%;height:auto;display:block}
+svg.chart text{fill:var(--muted);font-size:11px;font-family:inherit}
+svg.chart .gl{stroke:var(--grid);stroke-width:1}
+svg.chart .axis{stroke:var(--line);stroke-width:1}
+details summary{cursor:pointer;font-weight:600}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13.5px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+.scroll{overflow:auto;max-height:340px}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted);flex-wrap:wrap;margin-top:4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:820px){.two{grid-template-columns:1fr}}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <h1>⏱ Bandul Online</h1>
+  <span class="chip"><span class="dot" id="dot"></span><span id="status">Memuat…</span></span>
+  <span class="sp"></span>
+  <span class="chip" style="gap:8px">g acuan
+    <input id="gAcuan" type="number" step="0.01" value="9.78" style="width:76px;padding:2px 6px;background:rgba(255,255,255,.9);color:#14213d" aria-label="g acuan (m/s²)">
+  </span>
+</header>
+
+<nav role="tablist">
+  <button role="tab" id="tab-sesi" aria-selected="true">Sesi</button>
+  <button role="tab" id="tab-reg" aria-selected="false">Banyak percobaan</button>
+</nav>
+
+<main>
+  <div class="banner" id="banner" hidden></div>
+
+  <!-- ========== tampilan sesi ========== -->
+  <div id="view-sesi" class="layout">
+    <aside class="panel">
+      <h2>Sesi rekaman</h2>
+      <ul id="daftar"></ul>
+      <p class="small muted" style="margin:10px 0 0">Daftar diperbarui otomatis. Sesi baru muncul saat ESP32 mulai mengirim.</p>
+    </aside>
+
+    <section class="stack" id="detail" hidden>
+      <div class="panel">
+        <div class="row" style="justify-content:space-between">
+          <div>
+            <div style="font-size:18px;font-weight:650" id="d-judul">–</div>
+            <div class="small muted" id="d-sub">–</div>
+          </div>
+          <div class="row">
+            <button class="btn" id="btn-link">Salin tautan</button>
+            <button class="btn" id="btn-csv">Unduh CSV</button>
+          </div>
+        </div>
+        <form class="meta" id="form-meta" style="margin-top:12px" autocomplete="off">
+          <div><label for="in-L">Panjang tali L (cm)</label><input id="in-L" type="number" step="0.1" min="1"></div>
+          <div><label for="in-w">Lebar penghalang w (cm)</label><input id="in-w" type="number" step="0.01" min="0.01"></div>
+          <div><label for="in-R">Jari-jari penghalang R (cm), opsional</label><input id="in-R" type="number" step="0.1" min="0"></div>
+          <div><label for="in-m">Massa beban (g)</label><input id="in-m" type="number" step="0.01" min="0"></div>
+          <div class="row"><button class="btn pri" id="btn-simpan" type="submit">Simpan ke database</button></div>
+        </form>
+        <p class="small muted" style="margin:8px 0 0" id="meta-note">Mengubah isian langsung menghitung ulang di layar ini; tekan Simpan agar tersimpan untuk semua orang.</p>
+      </div>
+
+      <div class="panel" id="hasil">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <h2 style="margin:0">Hasil analisis</h2>
+          <span class="badge" id="b-g"></span>
+        </div>
+        <div id="pesan" class="kosong" hidden></div>
+        <div class="grid" id="kartu"></div>
+        <p class="small muted" style="margin:10px 0 0" id="b-arti"></p>
+      </div>
+
+      <div class="two">
+        <div class="panel"><h2>Periode tiap lewatan</h2><div id="ch-T"></div>
+          <div class="legend"><span><i style="background:var(--c1)"></i>dipakai</span><span><i style="background:var(--cbad)"></i>dibuang (menyimpang &gt; 20% dari median)</span></div></div>
+        <div class="panel"><h2>Kecepatan di titik terendah</h2><div id="ch-v"></div>
+          <div class="legend"><span><i style="background:var(--c2)"></i>v beban (m/s)</span></div></div>
+      </div>
+
+      <details class="panel">
+        <summary>Data mentah (<span id="n-raw">0</span> lewatan)</summary>
+        <div class="scroll" style="margin-top:8px"><table id="tabel-raw"></table></div>
+      </details>
+    </section>
+  </div>
+
+  <!-- ========== tampilan banyak percobaan ========== -->
+  <div id="view-reg" class="stack" hidden>
+    <div class="panel">
+      <h2>Tabel percobaan</h2>
+      <p class="small muted" style="margin-top:0">Centang sesi yang dipakai. Tiap sesi dianalisis dengan L, w, R, dan massa yang tersimpan (atau yang sedang Anda ubah di tab Sesi).</p>
+      <div class="scroll"><table id="tabel-reg"></table></div>
+    </div>
+    <div class="two">
+      <div class="panel"><h2>Regresi T² terhadap L</h2><div id="reg-T2L-teks" class="kosong"></div><div id="ch-T2L"></div></div>
+      <div class="panel"><h2>Regresi T terhadap massa</h2><div id="reg-Tm-teks" class="kosong"></div><div id="ch-Tm"></div></div>
+    </div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="demo-data.js"></script>
+<script src="analisis.js"></script>
+<script>
+'use strict';
+/* =====================================================================================
+   Lapisan data: Supabase lewat REST (tanpa SDK), atau mode demo.
+   ===================================================================================== */
+const cfg = window.BANDUL_CONFIG || {};
+const params = new URLSearchParams(location.search);
+const belumDiatur = !cfg.supabaseURL || !cfg.supabaseKey || /GANTI-DENGAN/.test(cfg.supabaseURL + cfg.supabaseKey);
+const DEMO = params.has('demo') || belumDiatur;
+
+// Supabase REST (PostgREST). Kunci publik (publishable/anon) aman dipasang di sini; akses dibatasi RLS.
+function buatStoreSupabase(url, kunci) {
+  const dasar = url.replace(/\/+$/, '') + '/rest/v1/';
+  const kepala = { apikey: kunci, 'Content-Type': 'application/json' };
+  const ms = (t) => (t ? Date.parse(t) : null);
+  const periksa = async (r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r; };
+  return {
+    daftar: async () => {
+      const rows = await (await periksa(await fetch(dasar + 'sesi?select=*&order=mulai.desc&limit=200', { headers: kepala, cache: 'no-store' }))).json();
+      return Object.fromEntries(rows.map((r) => [r.id, { ...r, mulai: ms(r.mulai), diperbarui: ms(r.diperbarui) }]));
+    },
+    data: async (id) => {
+      const out = [];
+      for (let off = 0; ; off += 1000) {            // halaman 1000 baris (batas bawaan Supabase)
+        const q = `lewatan?sesi_id=eq.${encodeURIComponent(id)}&select=m,k&order=no.asc&limit=1000&offset=${off}`;
+        const h = await (await periksa(await fetch(dasar + q, { headers: kepala, cache: 'no-store' }))).json();
+        for (const r of h) out.push([Number(r.m), Number(r.k)]);
+        if (h.length < 1000) return out;
+      }
+    },
+    simpanMeta: async (id, patch) => {
+      await periksa(await fetch(dasar + 'sesi?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: kepala, body: JSON.stringify(patch) }));
+    },
+  };
+}
+function buatStoreDemo() {
+  const d = JSON.parse(JSON.stringify(window.BANDUL_DEMO || {}));
+  return {
+    daftar: async () => Object.fromEntries(Object.entries(d).map(([k, v]) => [k, v.meta])),
+    data: async (id) => (d[id] ? d[id].rows : []),
+    simpanMeta: async (id, patch) => { Object.assign(d[id].meta, patch); },
+  };
+}
+const store = DEMO ? buatStoreDemo() : buatStoreSupabase(cfg.supabaseURL, cfg.supabaseKey);
+
+/* =====================================================================================
+   Keadaan & alat bantu
+   ===================================================================================== */
+const S = {
+  sesi: {},            // id -> meta dari database
+  baris: {},           // id -> [[m,k],...] (mikrodetik relatif)
+  lokal: {},           // id -> isian form yang sedang dipakai (cm, g)
+  dipilih: null,
+  tampil: 'sesi',
+  pilihReg: {},        // id -> boolean
+  gAcuan: 9.78,
+};
+const $ = (s) => document.querySelector(s);
+const nf = (x, d = 3) => Number.isFinite(x) ? x.toLocaleString('id-ID', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–';
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const waktu = (ms) => ms ? new Date(ms).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'waktu tidak diketahui';
+const adaLive = (m) => !DEMO && m.diperbarui && (Date.now() - m.diperbarui) < 15000;
+
+function setStatus(teks, kelas) {
+  $('#status').textContent = teks;
+  $('#dot').className = 'dot ' + (kelas || '');
+}
+
+function metaEfektif(id) {
+  const m = S.sesi[id] || {};
+  const l = S.lokal[id];
+  const cm = (v) => (v == null || v === '' ? null : +v / 100);
+  return {
+    L: l ? cm(l.L) : m.panjang_m,
+    w: l ? cm(l.w) : m.lebar_m,
+    R: l ? (cm(l.R) || null) : (m.jari_jari_m || null),
+    m: l ? (l.m === '' ? null : +l.m) : (m.massa_g || null),
+  };
+}
+
+function analisisSesi(id) {
+  const rows = S.baris[id];
+  const me = metaEfektif(id);
+  if (!rows || rows.length < 5) throw new Error(`Menunggu data… (${rows ? rows.length : 0} lewatan, minimal 5)`);
+  if (!(me.L > 0) || !(me.w > 0)) throw new Error('Isi panjang tali L dan lebar penghalang w terlebih dulu.');
+  return Bandul.analisisRekaman(me.L, me.w, rows.map((r) => r[0]), rows.map((r) => r[1]), { R: me.R });
+}
+
+/* =====================================================================================
+   Grafik SVG kecil (tanpa pustaka)
+   ===================================================================================== */
+function tickBagus(min, max, n = 5) {
+  const span = (max - min) || 1, mentah = span / n, mag = 10 ** Math.floor(Math.log10(mentah)), norm = mentah / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const out = [];
+  for (let v = Math.ceil(min / step - 1e-9) * step; v <= max + step * 1e-6; v += step) out.push(+v.toPrecision(12));
+  return { ticks: out, step };
+}
+function gambar(el, o) {
+  const W = 640, H = 300, ml = 54, mr = 14, mt = 12, mb = 40;
+  const semua = o.series.flatMap((s) => s.pts);
+  if (!semua.length) { el.innerHTML = '<div class="kosong">Belum ada data.</div>'; return; }
+  const pakaiY = o.domainY ? [] : semua.filter((p) => !p[3]).map((p) => p[1]);
+  let [x0, x1] = [Math.min(...semua.map((p) => p[0])), Math.max(...semua.map((p) => p[0]))];
+  let [y0, y1] = o.domainY || [Math.min(...pakaiY), Math.max(...pakaiY)];
+  if (x0 === x1) { x0 -= 1; x1 += 1; }
+  if (y0 === y1) { y0 -= 1; y1 += 1; }
+  const px = (x1 - x0) * 0.04, py = (y1 - y0) * 0.1;
+  x0 -= px; x1 += px; y0 -= py; y1 += py;
+  const X = (x) => ml + (x - x0) / (x1 - x0) * (W - ml - mr);
+  const Y = (y) => H - mb - (Math.min(y1, Math.max(y0, y)) - y0) / (y1 - y0) * (H - mt - mb);
+  const tx = tickBagus(x0, x1, 6), ty = tickBagus(y0, y1, 5);
+  const dx = Math.max(0, -Math.floor(Math.log10(tx.step))), dy = Math.max(0, -Math.floor(Math.log10(ty.step)));
+  let g = '';
+  for (const t of ty.ticks) g += `<line class="gl" x1="${ml}" x2="${W - mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml - 6}" y="${Y(t) + 4}" text-anchor="end">${nf(t, Math.min(dy, 4))}</text>`;
+  for (const t of tx.ticks) g += `<text x="${X(t)}" y="${H - mb + 16}" text-anchor="middle">${nf(t, Math.min(dx, 4))}</text>`;
+  g += `<line class="axis" x1="${ml}" x2="${W - mr}" y1="${H - mb}" y2="${H - mb}"/><line class="axis" x1="${ml}" x2="${ml}" y1="${mt}" y2="${H - mb}"/>`;
+  g += `<text x="${(ml + W - mr) / 2}" y="${H - 6}" text-anchor="middle">${esc(o.xlabel)}</text>`;
+  g += `<text transform="translate(13 ${(mt + H - mb) / 2}) rotate(-90)" text-anchor="middle">${esc(o.ylabel)}</text>`;
+  for (const s of o.series) {
+    if (s.garis && s.pts.length > 1) {
+      g += `<polyline fill="none" stroke="var(--${s.warna})" stroke-width="${s.tebal || 1.5}" ${s.putus ? 'stroke-dasharray="5 4"' : ''} points="${s.pts.map((p) => X(p[0]) + ',' + Y(p[1])).join(' ')}"/>`;
+    }
+    if (s.titik !== false) for (const p of s.pts) {
+      const w = p[2] || s.warna;
+      g += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="${s.r || 3.4}" fill="var(--${w})"><title>${esc(o.tipX || 'x')} ${nf(p[0], 3)} · ${esc(o.tipY || 'y')} ${nf(p[1], 4)}</title></circle>`;
+    }
+  }
+  el.innerHTML = `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.ylabel)} terhadap ${esc(o.xlabel)}">${g}</svg>`;
+}
+
+/* =====================================================================================
+   Tampilan: daftar sesi
+   ===================================================================================== */
+function urutSesi() {
+  return Object.keys(S.sesi).sort((a, b) => ((S.sesi[b].mulai || 0) - (S.sesi[a].mulai || 0)) || (a < b ? 1 : -1));
+}
+function renderDaftar() {
+  const ul = $('#daftar');
+  const ids = urutSesi();
+  if (!ids.length) { ul.innerHTML = '<li class="kosong">Belum ada sesi. Nyalakan ESP32 dan ayunkan bandul.</li>'; return; }
+  ul.innerHTML = ids.map((id) => {
+    const m = S.sesi[id];
+    const L = m.panjang_m ? `L ${nf(m.panjang_m * 100, 1)} cm` : 'L ?';
+    return `<li><button data-id="${esc(id)}" ${id === S.dipilih ? 'aria-current="true"' : ''}>
+      <div class="t1">${esc(m.nama || waktu(m.mulai))}${adaLive(m) ? '<span class="live">LIVE</span>' : ''}</div>
+      <div class="t2">${m.nama ? esc(waktu(m.mulai)) + ' · ' : ''}${m.n || 0} lewatan · ${L}${m.massa_g ? ' · ' + nf(m.massa_g, 2) + ' g' : ''}</div></button></li>`;
+  }).join('');
+}
+$('#daftar').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-id]');
+  if (b) pilihSesi(b.dataset.id);
+});
+
+/* =====================================================================================
+   Tampilan: detail sesi
+   ===================================================================================== */
+function isiForm(id) {
+  const m = S.sesi[id] || {};
+  const l = S.lokal[id] || {
+    L: m.panjang_m ? +(m.panjang_m * 100).toFixed(3) : '',
+    w: m.lebar_m ? +(m.lebar_m * 100).toFixed(3) : '',
+    R: m.jari_jari_m ? +(m.jari_jari_m * 100).toFixed(3) : '',
+    m: m.massa_g || '',
+  };
+  S.lokal[id] = l;
+  $('#in-L').value = l.L; $('#in-w').value = l.w; $('#in-R').value = l.R; $('#in-m').value = l.m;
+}
+function bacaForm() {
+  const l = S.lokal[S.dipilih];
+  l.L = $('#in-L').value; l.w = $('#in-w').value; l.R = $('#in-R').value; l.m = $('#in-m').value;
+}
+
+async function pilihSesi(id) {
+  S.dipilih = id;
+  history.replaceState(null, '', '#' + encodeURIComponent(id) + (DEMO && params.has('demo') ? '' : ''));
+  $('#detail').hidden = false;
+  isiForm(id);
+  renderDaftar();
+  renderDetail();
+  await muatData(id);
+}
+async function muatData(id) {
+  try {
+    S.baris[id] = await store.data(id);
+    if (id === S.dipilih) renderDetail();
+    if (S.tampil === 'reg') renderReg();
+  } catch (e) { setStatus('Gagal memuat data', 'err'); }
+}
+
+function kartu(k, v, u) { return `<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u || '&nbsp;'}</div></div>`; }
+
+function renderDetail() {
+  const id = S.dipilih;
+  if (!id || !S.sesi[id]) return;
+  const m = S.sesi[id], rows = S.baris[id] || [];
+  $('#d-judul').textContent = m.nama || waktu(m.mulai);
+  $('#d-sub').textContent = `${rows.length} lewatan · perangkat ${m.perangkat || '–'}${adaLive(m) ? ' · sedang merekam' : ''}`;
+  $('#n-raw').textContent = rows.length;
+  $('#tabel-raw').innerHTML = '<tr><th>#</th><th>t masuk (µs)</th><th>t keluar (µs)</th><th>Δt (ms)</th></tr>' +
+    rows.map((r, i) => `<tr><td>${i + 1}</td><td>${r[0]}</td><td>${r[1]}</td><td>${nf((r[1] - r[0]) / 1000, 1)}</td></tr>`).join('');
+
+  const pesan = $('#pesan'), kartuEl = $('#kartu');
+  let h;
+  try { h = analisisSesi(id); } catch (e) {
+    pesan.hidden = false; pesan.textContent = e.message; kartuEl.innerHTML = ''; $('#b-g').textContent = ''; $('#b-arti').textContent = '';
+    $('#ch-T').innerHTML = ''; $('#ch-v').innerHTML = '';
+    return;
+  }
+  pesan.hidden = true;
+  const nl = Bandul.nilaiG(h.g, S.gAcuan);
+  const bg = $('#b-g'); bg.textContent = 'g ' + nl.label; bg.className = 'badge ' + nl.status;
+  $('#b-arti').textContent = `g dari periode berbeda ${nf(Math.abs(nl.selisih_persen), 2)}% dari g acuan ${nf(S.gAcuan, 2)} m/s² ` +
+    '(ambang: ≤ 2% sesuai, ≤ 5% cukup sesuai). Besaran berbasis kecepatan (θ, γ, g koreksi) bergantung pada lebar deteksi efektif w; ' +
+    'untuk sensor IR pantul, w efektif biasanya lebih kecil dari lebar fisik pemantul.';
+  kartuEl.innerHTML =
+    kartu('Periode T', nf(h.T, 4) + ' s', `± ${nf(h.dT, 4)} s (s = ${nf(h.s_T, 4)})`) +
+    kartu('g dari periode', nf(h.g, 3), `± ${nf(h.dg, 3)} m/s²`) +
+    kartu('g koreksi amplitudo', nf(h.g_koreksi, 3), 'm/s²') +
+    kartu('Simpangan rata-rata θ', nf(h.theta_rata_deg, 1) + '°', 'dari kecepatan di titik terendah') +
+    kartu('Redaman γ', nf(h.gamma, 4) + ' s⁻¹', `R² ln v = ${nf(h.r2_gamma, 3)}` + (Number.isFinite(h.t_setengah) ? ` · t½ ${nf(h.t_setengah, 1)} s` : '')) +
+    kartu('Lewatan', String(h.n_lewatan), `${h.n_T_dibuang} periode dibuang · T regresi ${nf(h.T_regresi, 4)} s`);
+
+  gambar($('#ch-T'), {
+    series: [{ pts: h.T_i.map((t, i) => [i + 1, t, h.T_i_terpakai[i] ? 'c1' : 'cbad', !h.T_i_terpakai[i]]), garis: false, warna: 'c1' },
+             { pts: [[1, h.T], [Math.max(2, h.T_i.length), h.T]], garis: true, titik: false, warna: 'c1', putus: true, tebal: 1 }],
+    xlabel: 'nomor periode', ylabel: 'T (s)', tipX: 'periode ke', tipY: 'T (s)',
+  });
+  gambar($('#ch-v'), {
+    series: [{ pts: h.t_tengah.map((t, i) => [t, h.v[i]]), garis: true, warna: 'c2', r: 2.6, tebal: 1 }],
+    xlabel: 'waktu (s)', ylabel: 'v (m/s)', tipX: 't (s)', tipY: 'v (m/s)',
+  });
+}
+
+$('#form-meta').addEventListener('input', () => { if (S.dipilih) { bacaForm(); renderDetail(); } });
+$('#form-meta').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = S.dipilih; if (!id) return;
+  bacaForm();
+  const me = metaEfektif(id);
+  const patch = { panjang_m: me.L, lebar_m: me.w, massa_g: me.m || 0, jari_jari_m: me.R || null };
+  const btn = $('#btn-simpan'); btn.disabled = true;
+  try {
+    await store.simpanMeta(id, patch);
+    Object.assign(S.sesi[id], patch);
+    $('#meta-note').textContent = DEMO ? 'Mode demo: perubahan hanya tersimpan sementara di halaman ini.' : 'Tersimpan. Semua orang yang membuka sesi ini akan melihat nilai yang sama.';
+    renderDaftar();
+  } catch (err) { $('#meta-note').textContent = 'Gagal menyimpan (' + err.message + '). Periksa kebijakan RLS di Supabase.'; }
+  btn.disabled = false;
+});
+
+$('#btn-csv').addEventListener('click', () => {
+  const id = S.dipilih, rows = S.baris[id]; if (!rows || !rows.length) return;
+  const me = metaEfektif(id);
+  const teks = Bandul.tulisCSV({ panjang_m: me.L, lebar_m: me.w, jari_jari_m: me.R, massa_g: me.m }, rows.map((r) => r[0]), rows.map((r) => r[1]));
+  const nama = `rekaman_L${me.L ? Math.round(me.L * 1000) / 10 : 'x'}cm${me.m ? '_m' + me.m + 'g' : ''}_${id}.csv`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([teks], { type: 'text/csv' }));
+  a.download = nama; document.body.appendChild(a); a.click(); a.remove();
+});
+$('#btn-link').addEventListener('click', async () => {
+  const url = location.origin + location.pathname + location.search + '#' + encodeURIComponent(S.dipilih);
+  try { await navigator.clipboard.writeText(url); $('#btn-link').textContent = 'Tautan tersalin ✓'; }
+  catch { prompt('Salin tautan ini:', url); }
+  setTimeout(() => ($('#btn-link').textContent = 'Salin tautan'), 1800);
+});
+
+/* =====================================================================================
+   Tampilan: banyak percobaan
+   ===================================================================================== */
+async function renderReg() {
+  const ids = urutSesi().filter((id) => (S.sesi[id].n || 0) >= 5);
+  for (const id of ids) {
+    if (!(id in S.pilihReg)) S.pilihReg[id] = true;
+    if (!S.baris[id]) { try { S.baris[id] = await store.data(id); } catch { /* dicoba lagi di putaran berikut */ } }
+  }
+  const pakai = [];
+  const baris = ids.map((id) => {
+    let h = null;
+    try { h = analisisSesi(id); } catch { /* abaikan */ }
+    const me = metaEfektif(id);
+    if (h && S.pilihReg[id]) pakai.push({ id, L: h.L, T: h.T, m: me.m, g: h.g });
+    return `<tr><td><label style="display:flex;gap:8px;align-items:center;margin:0;color:var(--ink);font-size:13.5px">
+      <input type="checkbox" data-reg="${esc(id)}" ${S.pilihReg[id] ? 'checked' : ''}> ${esc(S.sesi[id].nama || waktu(S.sesi[id].mulai))}</label></td>
+      <td>${nf((me.L || NaN) * 100, 1)}</td><td>${me.m ? nf(me.m, 2) : '–'}</td><td>${h ? nf(h.T, 4) : '–'}</td><td>${h ? nf(h.g, 3) : '–'}</td></tr>`;
+  });
+  $('#tabel-reg').innerHTML = '<tr><th>Sesi</th><th>L (cm)</th><th>m (g)</th><th>T (s)</th><th>g (m/s²)</th></tr>' + (baris.join('') || '<tr><td colspan="5" class="kosong">Belum ada sesi dengan ≥ 5 lewatan.</td></tr>');
+
+  // T^2 terhadap L
+  const tT2 = $('#reg-T2L-teks');
+  try {
+    const r = Bandul.regresiT2L(pakai.map((p) => p.L), pakai.map((p) => p.T));
+    const nl = Bandul.nilaiG(r.g, S.gAcuan);
+    tT2.className = ''; tT2.innerHTML =
+      `<div class="row" style="margin-bottom:8px"><span class="badge ${nl.status}">g ${nl.label}</span><span><b>g = ${nf(r.g, 3)} ± ${nf(r.dg, 3)} m/s²</b></span></div>
+       <div class="small muted">gradien ${nf(r.gradien, 4)} ± ${nf(r.d_gradien, 4)} s²/m · intersep ${nf(r.intersep, 4)} ± ${nf(r.d_intersep, 4)} s² · R² ${nf(r.r2, 4)} · n = ${r.n}<br>
+       Teori: garis lurus melewati titik asal (intersep ≈ 0). Gradien dari panjang tali yang rentangnya sempit sangat peka terhadap galat L.</div>`;
+    const Ls = pakai.map((p) => p.L), x0 = Math.min(...Ls), x1 = Math.max(...Ls);
+    gambar($('#ch-T2L'), {
+      series: [{ pts: pakai.map((p) => [p.L, p.T * p.T]), garis: false, warna: 'c1', r: 4 },
+               { pts: [[x0, r.intersep + r.gradien * x0], [x1, r.intersep + r.gradien * x1]], garis: true, titik: false, warna: 'c2' }],
+      xlabel: 'L (m)', ylabel: 'T² (s²)', tipX: 'L (m)', tipY: 'T² (s²)',
+    });
+  } catch (e) { tT2.className = 'kosong'; tT2.textContent = e.message; $('#ch-T2L').innerHTML = ''; }
+
+  // T terhadap m
+  const tTm = $('#reg-Tm-teks');
+  try {
+    const pm = pakai.filter((p) => p.m);
+    const r = Bandul.regresiTm(pm.map((p) => p.m), pm.map((p) => p.T), pm.map((p) => p.L));
+    const bermakna = Math.abs(r.t_gradien) > 2.0;
+    tTm.className = ''; tTm.innerHTML =
+      `<div class="row" style="margin-bottom:8px"><span class="badge ${bermakna ? 'tidak' : 'sesuai'}">${bermakna ? 'ADA PENGARUH MASSA?' : 'T TIDAK BERGANTUNG MASSA'}</span></div>
+       <div class="small muted">gradien ${nf(r.gradien, 6)} ± ${nf(r.d_gradien, 6)} s/g · perubahan T sepanjang rentang massa ${nf(r.perubahan_persen, 2)}% · R² ${nf(r.r2, 3)} · n = ${r.n}<br>
+       Teori: T = 2π√(L/g) tidak memuat massa, sehingga gradien harus ≈ 0 (|t| &lt; ~2 berarti tidak berbeda nyata dari nol).</div>`;
+    const ms = pm.map((p) => p.m), a = r.T_rata - r.gradien * mean(ms);
+    gambar($('#ch-Tm'), {
+      series: [{ pts: pm.map((p, i) => [p.m, r.T_norm[i]]), garis: false, warna: 'c1', r: 4 },
+               { pts: [[Math.min(...ms), a + r.gradien * Math.min(...ms)], [Math.max(...ms), a + r.gradien * Math.max(...ms)]], garis: true, titik: false, warna: 'c2' }],
+      xlabel: 'massa (g)', ylabel: 'T (s)', tipX: 'm (g)', tipY: 'T (s)',
+      domainY: [r.T_rata * 0.97, r.T_rata * 1.03],
+    });
+  } catch (e) { tTm.className = 'kosong'; tTm.textContent = e.message; $('#ch-Tm').innerHTML = ''; }
+}
+const mean = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+$('#tabel-reg').addEventListener('change', (e) => {
+  const id = e.target.dataset && e.target.dataset.reg;
+  if (id) { S.pilihReg[id] = e.target.checked; renderReg(); }
+});
+
+/* =====================================================================================
+   Navigasi, polling, mulai
+   ===================================================================================== */
+function tampil(v) {
+  S.tampil = v;
+  $('#view-sesi').hidden = v !== 'sesi';
+  $('#view-reg').hidden = v !== 'reg';
+  $('#tab-sesi').setAttribute('aria-selected', v === 'sesi');
+  $('#tab-reg').setAttribute('aria-selected', v === 'reg');
+  if (v === 'reg') renderReg();
+}
+$('#tab-sesi').onclick = () => tampil('sesi');
+$('#tab-reg').onclick = () => tampil('reg');
+$('#gAcuan').addEventListener('input', (e) => {
+  const v = parseFloat(e.target.value);
+  if (v > 0) { S.gAcuan = v; renderDetail(); if (S.tampil === 'reg') renderReg(); }
+});
+
+async function segarkanDaftar() {
+  try {
+    S.sesi = await store.daftar();
+    setStatus(DEMO ? 'Mode demo' : 'Terhubung', DEMO ? '' : 'on');
+    renderDaftar();
+    if (!S.dipilih) {
+      const dariHash = decodeURIComponent(location.hash.slice(1));
+      const awal = S.sesi[dariHash] ? dariHash : urutSesi()[0];
+      if (awal) pilihSesi(awal);
+    } else {
+      renderDetail();
+      const m = S.sesi[S.dipilih];
+      if (m && (adaLive(m) || (S.baris[S.dipilih] || []).length !== (m.n || 0))) muatData(S.dipilih);
+    }
+  } catch (e) { setStatus('Tidak terhubung', 'err'); }
+}
+
+if (DEMO) {
+  const b = $('#banner'); b.hidden = false;
+  b.textContent = belumDiatur
+    ? 'Mode demo: memakai rekaman contoh dari projek Arduino. Isi supabaseURL dan supabaseKey di config.js agar halaman ini menampilkan data langsung dari ESP32.'
+    : 'Mode demo (?demo): memakai rekaman contoh, bukan data dari database.';
+}
+segarkanDaftar();
+setInterval(() => { if (document.visibilityState === 'visible') segarkanDaftar(); }, 3000);
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
